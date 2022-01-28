@@ -13,21 +13,15 @@ type UserDataRequest struct {
 	GeoData []GeoDataRow `json:"geo_data"`
 }
 
-type UserDataIn struct {
+type UserDataInternal struct {
 	UUID      string
 	Index     h3.H3Index
 	State     int
 	Timestamp int64
 }
 
-type UserDataOut struct {
-	UUID      string
-	Index     h3.H3Index
-	Timestamp int64
-}
-
-type ShardRequest struct {
+type ShardRequestInternal struct {
 	BaseCell int
-	In       []UserDataIn
-	Out      []UserDataOut
+	In       []UserDataInternal
+	Out      []UserDataInternal
 }
