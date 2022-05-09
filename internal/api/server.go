@@ -5,6 +5,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/lab259/cors"
 	"github.com/safe-area/user-data-collector/internal/models"
+	"github.com/safe-area/user-data-collector/internal/service"
 	"github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttprouter"
@@ -14,10 +15,11 @@ import (
 type Server struct {
 	r    *fasthttprouter.Router
 	serv *fasthttp.Server
+	svc  service.Service
 	port string
 }
 
-func New(port string) *Server {
+func New(svc service.Service, port string) *Server {
 	innerRouter := fasthttprouter.New()
 	innerHandler := innerRouter.Handler
 	s := &Server{
@@ -28,6 +30,7 @@ func New(port string) *Server {
 			IdleTimeout:  time.Duration(5) * time.Second,
 			Handler:      cors.AllowAll().Handler(innerHandler),
 		},
+		svc,
 		port,
 	}
 
@@ -46,7 +49,8 @@ func (s *Server) UserDataHandler(ctx *fasthttp.RequestCtx, ps fasthttprouter.Par
 		return
 	}
 	// TODO авторизация по токену из хедера
-
+	userId := "dev"
+	err = s.svc.SendData(userId, geoData)
 }
 
 func (s *Server) Start() error {

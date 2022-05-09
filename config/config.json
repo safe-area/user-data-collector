@@ -1,0 +1,11 @@
+{
+  "server_port": ":8080",
+  "dev": true,
+  "shard_url": "127.0.0.1:8081",
+  "pg_config": {
+    "host": "abul.db.elephantsql.com",
+    "port": "5432",
+    "user": "pgoezjbb",
+    "db": "pgoezjbb"
+  }
+}
