@@ -63,40 +63,52 @@ func (s *service) SendData(userId string, data models.UserDataRequest) error {
 	})
 
 	var newLastState models.PutRequest
-
-	for i := 0; i < len(data.GeoData); i++ {
-		baseCell := h3.BaseCell(requests[i].Index)
-		reqMap[baseCell] = append(reqMap[baseCell], requests[i])
-
-		if i == 0 {
-			lus, err := s.repo.GetLastUserState(userId)
-			if err == sql.ErrNoRows {
-				continue
-			} else if err != nil {
-				return err
-			} else {
-				lus.Timestamp = requests[i].Timestamp
-				reqMap[baseCell] = append(reqMap[baseCell], lus)
-			}
+	if len(data.GeoData) == 1 {
+		baseCell := h3.BaseCell(requests[0].Index)
+		reqMap[baseCell] = append(reqMap[baseCell], requests[0])
+		lus, err := s.repo.GetLastUserState(userId)
+		if err == sql.ErrNoRows {
+			logrus.Info("no last user state: ", userId)
+		} else if err != nil {
+			return err
 		} else {
-			switch requests[i-1].Action {
-			case models.IncHealthy:
-				action = models.DecHealthy
-			case models.IncInfected:
-				action = models.DecInfected
-			default:
-				return errors.New("invalid storage action")
-			}
-			reqMap[baseCell] = append(reqMap[baseCell], models.PutRequest{
-				Index:     requests[i-1].Index,
-				Timestamp: requests[i-1].Timestamp,
-				Action:    action,
-			})
+			lus.Timestamp = requests[0].Timestamp
+			reqMap[baseCell] = append(reqMap[baseCell], lus)
 		}
+		newLastState = requests[0]
+	} else {
+		for i := 0; i < len(data.GeoData); i++ {
+			baseCell := h3.BaseCell(requests[i].Index)
+			reqMap[baseCell] = append(reqMap[baseCell], requests[i])
 
-		if i == len(data.GeoData)-1 {
-			newLastState = requests[i]
-			break
+			if i == 0 {
+				lus, err := s.repo.GetLastUserState(userId)
+				if err == sql.ErrNoRows {
+					continue
+				} else if err != nil {
+					return err
+				} else {
+					lus.Timestamp = requests[i].Timestamp
+					reqMap[baseCell] = append(reqMap[baseCell], lus)
+				}
+			} else if i == len(data.GeoData)-1 {
+				newLastState = requests[i]
+				break
+			} else {
+				switch requests[i-1].Action {
+				case models.IncHealthy:
+					action = models.DecHealthy
+				case models.IncInfected:
+					action = models.DecInfected
+				default:
+					return errors.New("invalid storage action")
+				}
+				reqMap[baseCell] = append(reqMap[baseCell], models.PutRequest{
+					Index:     requests[i-1].Index,
+					Timestamp: requests[i-1].Timestamp,
+					Action:    action,
+				})
+			}
 		}
 	}
 

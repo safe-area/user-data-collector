@@ -39,7 +39,8 @@ func (r *repository) SetLastUserState(userId string, data models.PutRequest) err
 	}
 	_, err := r.conn.Exec(`INSERT INTO last_user_state (user_id, hex, action) 
 VALUES ($1, $2, $3)
-ON CONFLICT (id) DO UPDATE 
-  SET user_id = excluded.user_id;`, userId, data.Index, action)
+ON CONFLICT (user_id) DO UPDATE 
+  SET  hex = excluded.hex, 
+       action = excluded.action;`, userId, data.Index, action)
 	return err
 }
