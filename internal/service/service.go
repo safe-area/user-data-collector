@@ -1,6 +1,7 @@
 package service
 
 import (
+	"database/sql"
 	"errors"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/safe-area/user-data-collector/config"
@@ -66,16 +67,17 @@ func (s *service) SendData(userId string, data models.UserDataRequest) error {
 	for i := 0; i < len(data.GeoData); i++ {
 		baseCell := h3.BaseCell(requests[i].Index)
 		reqMap[baseCell] = append(reqMap[baseCell], requests[i])
+
 		if i == 0 {
 			lus, err := s.repo.GetLastUserState(userId)
-			if err != nil {
+			if err == sql.ErrNoRows {
+				continue
+			} else if err != nil {
 				return err
+			} else {
+				lus.Timestamp = requests[i].Timestamp
+				reqMap[baseCell] = append(reqMap[baseCell], lus)
 			}
-			lus.Timestamp = requests[i].Timestamp
-			reqMap[baseCell] = append(reqMap[baseCell], lus)
-		} else if i == len(data.GeoData)-1 {
-			newLastState = requests[i]
-			break
 		} else {
 			switch requests[i-1].Action {
 			case models.IncHealthy:
@@ -90,6 +92,11 @@ func (s *service) SendData(userId string, data models.UserDataRequest) error {
 				Timestamp: requests[i-1].Timestamp,
 				Action:    action,
 			})
+		}
+
+		if i == len(data.GeoData)-1 {
+			newLastState = requests[i]
+			break
 		}
 	}
 

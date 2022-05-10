@@ -51,6 +51,11 @@ func (s *Server) UserDataHandler(ctx *fasthttp.RequestCtx, ps fasthttprouter.Par
 	// TODO авторизация по токену из хедера
 	userId := "dev"
 	err = s.svc.SendData(userId, geoData)
+	if err != nil {
+		logrus.Error("UserDataHandler: ", err)
+		ctx.SetStatusCode(fasthttp.StatusInternalServerError)
+		return
+	}
 }
 
 func (s *Server) Start() error {
