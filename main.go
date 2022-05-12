@@ -36,6 +36,10 @@ func main() {
 	repo := repository.New(pgConn)
 
 	provider := nats_provider.New(cfg.NATS.URLs)
+	err = provider.Open()
+	if err != nil {
+		logrus.Fatalf("open nats conn error: %v", err)
+	}
 
 	svc := service.New(cfg, repo, provider)
 	svc.Prepare()
