@@ -7,5 +7,10 @@
     "port": "5432",
     "user": "pgoezjbb",
     "db": "pgoezjbb"
+  },
+  "nats": {
+    "urls": [
+      "nats:4222"
+    ]
   }
 }

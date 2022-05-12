@@ -6,6 +6,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/safe-area/user-data-collector/config"
 	"github.com/safe-area/user-data-collector/internal/api"
+	"github.com/safe-area/user-data-collector/internal/nats_provider"
 	"github.com/safe-area/user-data-collector/internal/repository"
 	"github.com/safe-area/user-data-collector/internal/service"
 	"github.com/sirupsen/logrus"
@@ -34,7 +35,10 @@ func main() {
 
 	repo := repository.New(pgConn)
 
-	svc := service.New(cfg, repo)
+	provider := nats_provider.New(cfg.NATS.URLs)
+
+	svc := service.New(cfg, repo, provider)
+	svc.Prepare()
 
 	server := api.New(svc, cfg.ServerPort)
 

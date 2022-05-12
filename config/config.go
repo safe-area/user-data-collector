@@ -17,6 +17,10 @@ type Config struct {
 		Pass string
 		DB   string `json:"db"`
 	} `json:"pg_config"`
+	NATS struct {
+		URLs []string `json:"urls"`
+	} `json:"nats"`
+	Shards []int `json:"shards"`
 }
 
 // ParseConfig of service

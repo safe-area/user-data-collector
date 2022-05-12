@@ -3,33 +3,47 @@ package service
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/safe-area/user-data-collector/config"
 	"github.com/safe-area/user-data-collector/internal/models"
+	"github.com/safe-area/user-data-collector/internal/nats_provider"
 	"github.com/safe-area/user-data-collector/internal/repository"
 	"github.com/sirupsen/logrus"
 	h3 "github.com/uber/h3-go"
-	"github.com/valyala/fasthttp"
-	"net/http"
 	"sort"
+)
+
+const (
+	shardTemplate = "PUT_DATA_SHARD_"
+	defaultShard  = "PUT_DATA_SHARD_DEFAULT"
 )
 
 type Service interface {
 	SendData(userId string, data models.UserDataRequest) error
+	Prepare()
 }
 
-func New(cfg *config.Config, repo repository.Repository) Service {
+func New(cfg *config.Config, repo repository.Repository, provider *nats_provider.NATSProvider) Service {
 	return &service{
-		cfg:        cfg,
-		httpClient: new(fasthttp.Client),
-		repo:       repo,
+		cfg:    cfg,
+		nats:   provider,
+		shards: make(map[int]string),
+		repo:   repo,
+	}
+}
+
+func (s *service) Prepare() {
+	for _, v := range s.cfg.Shards {
+		s.shards[v] = fmt.Sprint(shardTemplate, v)
 	}
 }
 
 type service struct {
-	cfg        *config.Config
-	httpClient *fasthttp.Client
-	repo       repository.Repository
+	cfg    *config.Config
+	nats   *nats_provider.NATSProvider
+	shards map[int]string
+	repo   repository.Repository
 }
 
 func (s *service) SendData(userId string, data models.UserDataRequest) error {
@@ -123,36 +137,24 @@ func (s *service) SendData(userId string, data models.UserDataRequest) error {
 }
 
 func (s *service) sendToShard(shard int, data []models.PutRequest) error {
-	if s.cfg.Dev {
-		storeReqBody, err := jsoniter.Marshal(data)
-		if err != nil {
-			logrus.Errorf("sendToShard: error while marshalling request: %s", err)
-			return err
-		}
-
-		httpReq := fasthttp.AcquireRequest()
-		httpResp := fasthttp.AcquireResponse()
-		httpReq.Header.SetMethod("POST")
-		httpReq.Header.SetContentType("application/json")
-		httpReq.SetRequestURI(s.cfg.ShardURL + "/api/v1/put")
-		httpReq.SetBody(storeReqBody)
-		if err = s.httpClient.Do(httpReq, httpResp); err != nil {
-			logrus.Error("sendToShard: Do request error", err)
-			fasthttp.ReleaseRequest(httpReq)
-			fasthttp.ReleaseResponse(httpResp)
-			return err
-		}
-		if httpResp.StatusCode() != http.StatusOK {
-			logrus.Error("getDataDev: status code:", httpResp.StatusCode())
-			fasthttp.ReleaseRequest(httpReq)
-			fasthttp.ReleaseResponse(httpResp)
-			return err
-		}
-		fasthttp.ReleaseRequest(httpReq)
-		fasthttp.ReleaseResponse(httpResp)
-	} else {
-		// TODO
-		return errors.New("haven't done yet")
+	storeReqBody, err := jsoniter.Marshal(data)
+	if err != nil {
+		logrus.Errorf("sendToShard: error while marshalling request: %s", err)
+		return err
+	}
+	subj := s.getSubj(shard)
+	_, err = s.nats.Request(subj, storeReqBody)
+	if err != nil {
+		logrus.Errorf("sendToShard: nats request error: %s", err)
+		return err
 	}
 	return nil
+}
+
+func (s *service) getSubj(hex int) string {
+	if v, ok := s.shards[hex]; ok {
+		return v
+	} else {
+		return defaultShard
+	}
 }
