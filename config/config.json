@@ -3,10 +3,10 @@
   "dev": true,
   "shard_url": "http://storage:8080",
   "pg_config": {
-    "host": "abul.db.elephantsql.com",
+    "host": "postgres",
     "port": "5432",
-    "user": "pgoezjbb",
-    "db": "pgoezjbb"
+    "user": "postgres",
+    "db": "postgres"
   },
   "nats": {
     "urls": [
